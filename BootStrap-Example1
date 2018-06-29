@@ -1,0 +1,17 @@
+
+<!DOCTYPE html>
+<html lang="zh-cn">
+  <meta name="author" content="Peter Lee">
+	<head>
+		<meta charset = 'UTF-8'>
+		<title>bootstrap example1</title>
+		<link rel="stylesheet" href="css/bootstrap.min.css">
+	</head>
+	
+	<body>
+		<button class="btn btn-info">bootstrap</button>
+	</body>
+</html>
+
+
+
