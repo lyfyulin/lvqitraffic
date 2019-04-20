@@ -1,0 +1,1041 @@
+<!doctype html>
+
+<!-- 
+例子：8个交叉口
+系统速度：12.5 m/s
+公共周期：80 s
+交叉口位置：0	350		400		160		540		280		280		270
+周期：	80	80	80	80	80	80	80	80
+绿信比：	0.55	0.6		0.65	0.65	0.6		0.65	0.7		0.5
+
+-->
+
+
+
+<html>
+<head>
+	<meta name = "author" content = "Peter,Lee lyfyulin1992@163.com" />
+	<meta charset = "utf-8" />
+	<meta name = "description" content = "traffic Intersection layout " />
+	<meta name = "keywords" content = "Intersection layout" />
+	<meta http-equiv = "Window-target" content = "_top" />
+	<title>干线协调计算</title>
+	<style>
+		*{text-align:center;}
+		* div{ text-align:center; }
+		#page{height:400px; width:500px;  padding:2px; margin:100px; }
+		#div1{text-align:center;  width:1000px; margin:50px; margin-bottom:0;}
+		#params{text-align:center; width:1000px; height:100px; margin:50px; background:blue; line-height:50px; font-size:20px;}
+		#showcross{ width:1000px; height:500px; margin:50px; border:1px #000 solid;}
+		#inputs{background:green; height:300px; width:1000px;  margin:50px; text-align:center; }
+		#calresult{ height:300px; width:1000px;  margin:50px; text-align:center; }
+		#showcalresult{height:200px; width:500px; }
+		
+		.action1{background:pink;}
+		#btn_arr{display:inline; width:1000px; height:30px; text-align:center; }
+		#inputs div ul{list-style:none; }
+		#inputs div ul li{float:left; }
+		.cross{ width:500px; height:180px; display:none;  }
+		footer{font-size:10px; text-align:center; margin-top:1250px; line-height:30px; }
+		#btncen{float:bottom; position:relative; top:0px; left:320px;}
+	</style>
+	<script>
+		
+		/* 
+		 *	干线协调控制计算流程：
+		 *			
+		 *			
+		 *			
+		 *			
+		 *			
+		 */
+		
+		
+		
+		
+		
+		/* 		function Point(x, y)
+		 *				定义点对象
+		 *		
+		 *		对象属性：
+		 *				x 	横坐标
+		 *				y   纵坐标
+		 *		
+		 *		初始化方法:
+		 *				var pt = new Point(1, 2);
+		 */
+		function Point(x, y)			
+		{
+			this.x = x;
+			this.y = y;
+		};
+		
+		
+		
+		
+		
+		/*
+		 *		function insertInput(id, leftnumber, straightnumber)
+		 *				
+		 *
+		 *
+		 *
+		 *
+		 */
+		function insertInput(id, leftnumber, straightnumber)			
+		{	
+			var obj1 = document.getElementById(id);		
+			var oUl1 = obj1.getElementsByTagName('ul');				//oUl1是数组。
+			oUl1[0].style.background = 'none';
+			//插入左转车流量输入框
+			for(var i = 0; i < leftnumber; i++)
+			{
+				var oLi = document.createElement('li');
+				oUl1[0].appendChild(oLi);						
+				//oLi.style.id = id + i + 1;
+				oLi.innerHTML = '左转' + (i + 1) + '：<input type = "text" id = "txt' + i + 1 + '" />'
+			}
+			//插入直行车流量输入框
+			for(var i = 0; i < straightnumber; i++)
+			{
+				var oLi = document.createElement('li');
+				oUl1[0].appendChild(oLi);						
+				//oLi.style.id = id + i + 1;
+				oLi.innerHTML = '直行' + (i + 1) + '：<input type = "text" id = "txt' + i + 1 + '" />'
+			}
+		}
+		
+		
+		
+		
+		
+		/*
+		 *		function TabSwitch(id, id2)
+		 *				选项卡切换
+		 *
+		 *		输入参数：
+		 *				id:		各选项卡div的id
+		 *				id2:	选项卡切换按钮组div的id
+		 *
+		 *		实例：
+		 *				new TabSwitch('div_arr', 'btn_arr');
+		 */
+		function TabSwitch(id, id2)					
+		{	
+			var _this = this;								
+			var oDiv = document.getElementById(id);
+			var oDiv2 = document.getElementById(id2);
+			this.aBtn = oDiv2.getElementsByTagName("input");	
+			this.aDiv = oDiv.getElementsByTagName("div");
+			for(i = 0; i < this.aBtn.length; i++)		
+			{
+				this.aBtn[i].index = i;
+				this.aBtn[i].onclick = function()	
+				{
+					_this.fnclick(this);
+				}
+			}
+		}
+		TabSwitch.prototype.fnclick = function (oBtn)
+		{
+			for(j = 0; j < this.aBtn.length; j++)
+			{
+				this.aBtn[j].className = "";		
+				this.aDiv[j + 1].style.display = "none";
+			}
+			oBtn.className = "action1";
+			this.aDiv[oBtn.index + 1].style.display = "block";
+		}
+		
+
+		
+		
+		
+		/* 
+		 *		function DeleteElements(id, ele)
+		 *				删除元素
+		 *
+		 *		输入参数：
+		 *				id：	元素id
+		 *				ele：	元素标签名
+		 *
+		 *
+		 */
+		function DeleteElements(id, ele)
+		{
+		
+			var obj = document.getElementById(id);
+			var oEle = obj.getElementsByTagName(ele);
+			for(var i = 0; i < oEle.length; i++)
+			{
+				obj.removeChild(oEle[i]);
+			}
+		}
+	
+	
+	
+	
+	
+	
+		// 插入按钮
+		function insertButtons(obj, cross_num)
+		{
+			obj.innerHTML = '';
+			for(var i = 0; i < cross_num; i++)
+			{
+				//方法1
+				//insertEle('btn_arr', 'input', 'button', '交叉口' + (i + 1), 'display:block;');
+				
+				//方法2
+				var str1 = obj.innerHTML;
+				if(i == 0)
+				{
+					str1 += "<input type = 'button' class = 'action1' value = '交叉口" + (i + 1) + "' />";
+				}
+				else
+				{
+					str1 += "<input type = 'button' value = '交叉口" + (i + 1) + "' />";
+				}
+				obj.innerHTML = str1;
+			}		
+			return str1;
+		}
+		
+		
+		
+		
+		
+		
+		/* 
+		 *		function insertTabs(obj, cross_num, str1)
+		 *				插入选项卡div
+		 *		
+		 *		输入参数：
+		 *				obj				
+		 *				cross_num		
+		 *				str1			
+		 *
+		 */
+		function insertTabs(obj, cross_num, str1)
+		{
+		
+			obj.innerHTML = "<div id = 'btn_arr' >" + str1 + "</div>";
+			for(var i = 0; i < cross_num; i++)
+			{
+				var str2 = obj.innerHTML;
+				if(i == 0)
+				{
+					str2 += "<div class = 'cross' style = 'display:block;'><ul><li>*起始交叉口位置：<input type = 'text' /> m  <small>(建议输入 0m )</small></li><li>   *周      期：<input type = 'text' /> s</li><li>*绿  信  比：<input type = 'text' /> (范围0~1)</li><li>相  位  差：<input type = 'text' /> s</li><li>损失率：<input type = 'text' /> %</li><li>有效绿信比：<input type = 'text' /> %</li><li>绿时差：<input type = 'text' /> s</li><li>相位差：<input type = 'text' /> s</li></ul></div>";
+				}
+				else
+				{
+					str2 += "<div class = 'cross' style = 'display:none;'><ul><li>*距离第" + (i) + "个交叉口距离：<input type = 'text' /> m</li><li>   *周   期：<input type = 'text' /> s</li><li>*绿  信  比：<input type = 'text' /> (范围0~1)</li><li>相  位  差：<input type = 'text' /> s</li><li>损失率：<input type = 'text' /> %</li><li>有效绿信比：<input type = 'text' /> %</li><li>绿时差：<input type = 'text' /> s</li><li>相位差：<input type = 'text' /> s</li></ul></div>";
+				}
+				obj.innerHTML = str2;
+			}
+		}
+		
+		
+		
+		
+		
+		
+		// 方法一：使用appendChild
+		function insertEle(id, ele, type, value, style)
+		{
+			var oDiv = document.getElementById(id);
+			var obj = document.createElement(ele);
+			obj.type = type;
+			obj.value = value;
+			obj.style = style;
+			oDiv.appendChild(obj);
+		}
+		
+		
+		
+		
+		
+		
+		
+		/* 
+		 *		function accumSum(arr)
+		 *				数组累加
+		 *
+		 *		输入参数：
+		 *				arr			list
+		 *		
+		 *		实例：
+		 *				var sums = accumSum(arr);
+		 */
+		function accumSum(arr)
+		{
+			var result = [];
+			var sum = 0;
+			for(var i = 0; i < arr.length; i++)
+			{
+				sum += arr[i];
+				result.push(sum);
+			}
+			return result;
+		}
+			
+			
+			
+			
+			
+			
+			
+		// 排序返回索引
+		function arraySortReturnIndex(arr)
+		{
+			var index = [];
+			var tmp = 0;
+			var tmp_arr = [];
+			for(var i = 0; i < arr.length; i++)
+			{
+				tmp_arr.push(arr[i]);
+			}
+			for(var i = 0; i < arr.length; i++)
+			{
+				index.push(i);
+			}
+			for (var i = 0; i < tmp_arr.length; i++)  
+			{  
+				for (var j = i + 1; j < tmp_arr.length; j++)  
+				{  
+					if (tmp_arr[i] >= tmp_arr[j])  
+					{  
+						tmp = tmp_arr[i];
+						tmp_arr[i] = tmp_arr[j];
+						tmp_arr[j] = tmp;
+						tmp = index[i];
+						index[i] = index[j];
+						index[j] = tmp;
+					}
+				}
+			}
+			return index;
+		}
+		
+		
+		
+		
+		
+		
+		// 返回最大值
+		function arrayMaxReturnIndexOrVal(arr, flag)
+		{	
+			var result = [];
+			var tmp = arr[0];
+			for(var i = 0; i < arr.length; i++)
+			{
+				if(arr[i] > tmp)
+				{
+					tmp = arr[i];
+					result = [];
+					result.push(i + 1);		
+				}
+				else if(arr[i] == tmp)
+				{
+					result.push(i + 1);
+				}
+			}
+
+			if(flag == true)
+			{
+				return result;
+			}
+			else
+			{
+				return tmp;
+			}
+		}
+
+		
+		/* 		 
+		 *		function calGreenWave(arr, v, c, min_actual2dream_gap, max_actual2dream_gap, gap_skip)
+		 *				step 8:确定最大挪移距离以及交叉口
+		 *	
+		 *		输入参数：
+		 *				arr						
+		 *				v						
+		 *				c						
+		 *				min_actual2dream_gap	
+		 *				max_actual2dream_gap	
+		 *				gap_skip				
+		 *		
+		 *		返回值：
+		 *				result[0]		最大距离挪移量
+		 *				result[1]		最大挪移距离的交叉口
+		 *				result[2]		理想交叉口距离值
+		 *				
+		 */
+		function calGreenWave(arr, v, c, min_actual2dream_gap, max_actual2dream_gap, gap_skip)
+		{
+			var result = [];
+			var coordinate = accumSum(arr);
+//alert('空间位置：' + coordinate);
+			
+			var dream_max_shift_gap = 0;
+			var dream_max_shift_gap_cross = 0;			// 最大挪移的交叉口
+			var dream_gap = 0;							// 最佳x值
+			var dream_shift_gap = 0;
+			for(var gaps_arr = min_actual2dream_gap; gaps_arr < max_actual2dream_gap; gaps_arr += gap_skip)			// x值
+			{
+				var dream2actual_gap = [];				//与理想交叉口的距离
+				for(var i = 0; i < arr.length; i++)
+				{
+					dream2actual_gap.push(coordinate[i] - gaps_arr * parseInt(coordinate[i]/gaps_arr));		// 表中间内容
+				}
+				dream2actual_gap.push(gaps_arr);
+				var sort_index = arraySortReturnIndex(dream2actual_gap);
+
+				var shift_gap = [];
+				for(var i = 1; i < dream2actual_gap.length; i++)
+				{
+					index = sort_index[i];
+					shift_gap.push(dream2actual_gap[sort_index[i]] - dream2actual_gap[sort_index[i - 1]]);		// 计算相邻挪移量之差。
+
+					if(dream2actual_gap[sort_index[i]] - dream2actual_gap[sort_index[i - 1]] > dream_max_shift_gap)
+					{
+						dream_max_shift_gap = dream2actual_gap[sort_index[i]] - dream2actual_gap[sort_index[i - 1]];
+						
+						dream_max_shift_gap_cross = sort_index[i-1];											// 最大挪移在哪个交叉口
+						dream_shift_gap = (gaps_arr - dream_max_shift_gap) / 2;			// 最大挪移
+						dream_gap = gaps_arr;
+					}
+				}
+				//var max_shift_gap = arrayMaxReturnIndexOrVal(shift_gap, false);			// 找出相对挪移量最大值。	y值
+			}
+			result.push(dream_shift_gap);
+			result.push(dream_max_shift_gap_cross);
+			result.push(dream_gap);
+			return result;
+//alert('最大挪移距离的交叉口' + dream_max_shift_gap_cross + '应该是6');
+//alert('理想交叉口距离值：' + dream_gap  + '应该是500');
+//alert('最大距离挪移量：'+ dream_shift_gap + '应该是140');
+		}
+
+		
+		/* 		 
+		 *		function calactual2dreamLocation(coordinate, gap_cross)
+		 *				step 9,10,11,12 实际交叉口距离假想交叉口的相对距离和位置
+		 *		
+		 *		输入参数：
+		 *				coordinate		实际交叉口位置
+		 *				
+		 *
+		 *
+		 *
+		 *		返回值：
+		 *				[0]			实际交叉口与理想交叉口的距离
+		 *				[1]			实际交叉口位于理想交叉口的左侧或者右侧
+		 *				[2]			实际交叉口对应理想交叉口的编号
+		 */
+		function calactual2dreamLocation(coordinate, gap_cross)
+		{
+			var result = [];
+			var min_cross = Math.ceil(((coordinate[gap_cross[1]] - gap_cross[0]) - coordinate[0]) / gap_cross[2]);
+			
+			var max_cross = Math.ceil((coordinate[coordinate.length - 1] - (coordinate[gap_cross[1]] - gap_cross[0])) / gap_cross[2]);
+				
+			var center_coor = coordinate[gap_cross[1]] - gap_cross[0];
+			
+			var dream_coor = [];
+			first_dream_coor = center_coor - min_cross * gap_cross[2];
+			dream_coor.push(first_dream_coor);
+			for(var i = 1; i < min_cross + max_cross + 1; i++)
+			{
+				dream_coor.push(first_dream_coor + i * gap_cross[2]);
+			}
+//alert(dream_coor);
+			var actual2dream_gap = [];
+			var actual2dream_left_or_right = [];
+			var actual2dream_index = [];
+				
+			for(var i = 0; i < coordinate.length; i++)
+			{
+				var temp_tmp = coordinate[i] - dream_coor[0];
+				var temp_tmp2 = 0;
+				var temp_tmp3 = 0;
+				for(var j = 0; j < dream_coor.length; j++)
+				{
+					if(temp_tmp >= Math.abs(coordinate[i] - dream_coor[j]))
+					{
+						temp_tmp = Math.abs(coordinate[i] - dream_coor[j]);
+//alert('coordinate' + coordinate[0]);			// 实际交叉口坐标
+//alert('dream_coor' + dream_coor[0]);			// 理想交叉口坐标
+						if((coordinate[i] - dream_coor[j]) > 0)		// 实际交叉口位于理想交叉口右侧
+						{	
+							temp_tmp2 = 2;
+						}
+						else										// 实际交叉口位于理想交叉口左侧
+						{
+							temp_tmp2 = 1;
+						}
+						temp_tmp3 = j + 1;
+
+					}
+				}
+				actual2dream_gap.push(temp_tmp);				//	实际交叉口与理想交叉口的距离
+				actual2dream_left_or_right.push(temp_tmp2);		//	实际交叉口位于理想交叉口的左侧或者右侧
+				actual2dream_index.push(temp_tmp3);				//	实际交叉口对应理想交叉口的编号
+			}
+		
+			result.push(actual2dream_left_or_right);
+			result.push(actual2dream_gap);
+			result.push(actual2dream_index);
+			return result;
+		}
+		
+		
+		/* 		
+		 *		function calOffset(cross_lamda_arr, cross_cycle_arr, to_dream_cross_index)
+		 *				step 14 计算各个交叉口的相位差
+		 *
+		 *		输入参数：
+		 *				cross_lamda_arr			各交叉口绿信比
+		 *				cross_cycle_arr			公共周期时长
+		 *				to_dream_cross_index	理想交叉口编号
+		 *
+		 */
+		function calOffset(cross_lamda_arr, cross_cycle_arr, to_dream_cross_index)
+		{
+			var offset = [];
+			for(var i = 0; i < cross_lamda_arr.length; i++)
+			{
+				if(to_dream_cross_index[i] % 2 == 0)
+				{
+					offset.push(parseInt((0.5 - 0.5 * cross_lamda_arr[i]) * cross_cycle_arr[i]));
+				}
+				else
+				{
+					offset.push(parseInt((1 - 0.5 * cross_lamda_arr[i]) * cross_cycle_arr[i]));
+				}
+			}	
+			return offset;
+		}
+		
+		
+		
+		
+		
+		/* 			
+		 *		function calRelativeOffset(offset, publicCycle, suppose_cross_index)
+		 *				step 15 计算相对相位差
+		 *
+		 *		输入参数：
+		 *				offset					相位差
+		 *				publicCycle				公共周期时长
+		 *				suppose_cross_index		假想交叉口编号
+		 *
+		 *
+		 */
+		function calRelativeOffset(offset, publicCycle, suppose_cross_index)
+		{
+			var relative_offset = [];
+			
+			for(var i = 0; i < offset.length; i++)
+			{
+				if(offset[i] >= offset[suppose_cross_index])
+				{
+					relative_offset.push(offset[i] - offset[suppose_cross_index]);
+					
+				}
+				else
+				{
+					relative_offset.push(offset[i] - offset[suppose_cross_index] + publicCycle);
+				}
+			}
+			return relative_offset;
+		}
+		
+		
+		
+		
+		/*
+		 *		参数说明：
+		 *			velocity  		区间速度  		从网页中输入框获取。
+		 *			publicCycle  	公共周期  		从网页中输入框获取。
+		 *			cross_dist  	交叉口间距		从网页中输入框获取。
+		 *			gap_cross		挪移参数
+		 *							arguments[0]	最大挪移距离				函数calGreenWave()计算得到
+		 *							arguments[1]	最大挪移距离对应交叉口		函数calGreenWave()计算得到
+		 *							arguments[2]	理想交叉口间距				函数calGreenWave()计算得到
+		 *			coordinate		交叉口坐标		数组cross_dist累加获得。
+		 *			min_cross		最大挪移的交叉口对应理想交叉口 左侧存在的理想交叉口数量	
+		 *			max_cross		最大挪移的交叉口对应理想交叉口 右侧存在的理想交叉口数量	
+		 *			center_coor		最大挪移的交叉口对应理想交叉口
+		 *			dream_coor		各理想交叉口坐标	
+		 *			actual2dream_gap				每个实际交叉口距最近理想交叉口的距离
+		 *			actual2dream_left_or_right		每个实际交叉口距最近理想交叉口的方向（左侧(1)或右侧(2)）
+		 *			
+		 */
+		
+		function get_lamda_cycle(id, publicCycle)
+		{
+			var oDiv2 = document.getElementById(id);
+			var aDiv = oDiv2.getElementsByTagName('div');
+			var result = [];
+			var lamda_arr = [];
+			var cycle_arr = [];
+			var loss_arr = [];
+			for(var i = 1; i < aDiv.length; i++)
+			{
+				var aTxt = aDiv[i].getElementsByTagName('input');
+				
+		/*		
+				if(aTxt[2].value = '')
+				{
+					alert('请输入第' + i + '个交叉口的绿信比！');
+					
+				}
+		
+				if(aTxt[1].value = '')
+				{
+					cycle_arr.push(publicCycle);
+				}
+				else
+				{
+					cycle_arr.push(parseInt(aTxt[1].value));
+				}
+		*/
+		
+				cycle_arr.push(parseInt(aTxt[1].value));
+				lamda_arr.push(parseFloat(aTxt[2].value));
+			}
+			result.push(lamda_arr);
+			result.push(cycle_arr);
+			return result;
+		}
+		
+		
+		/*
+		 *		function calGreenBandWidth(actual2dreamgap, actual2dreamdirection, actual2dream_index, dream_gap, velocity, green_start_time, green_end_time)
+		 *				计算绿波带宽度
+		 *		
+		 *		输入参数：
+		 *				actual2dreamgap			
+		 *				actual2dreamdirection	
+		 *				actual2dream_index		
+		 *				dream_gap				
+		 *				velocity				速度变量
+		 *				green_start_time		绿灯起始时刻
+		 *				green_end_time			绿灯结束时刻
+		 *				
+		 */
+		function calGreenBandWidth(actual2dreamgap, actual2dreamdirection, actual2dream_index, dream_gap, velocity, green_start_time, green_end_time)
+		{
+			var relative_left_coor = [];
+			var relative_right_coor = [];
+			for(var i = 0; i < actual2dream_index.length; i++)
+			{
+				var temp = actual2dreamgap[i] * (actual2dreamdirection[i] - 1.5) * 2 + dream_gap * (actual2dream_index[i] - 1);
+				relative_left_coor.push(temp);
+			}
+			for(var i = actual2dream_index.length - 1; i >= 0; i--)
+			{
+				var temp = actual2dreamgap[i] * (1.5 - actual2dreamdirection[i]) * 2 + dream_gap * (actual2dream_index[actual2dream_index.length - 1] - actual2dream_index[i]);
+				relative_right_coor.push(temp);
+			}
+			var max_k1 = 0;
+			var min_k2 = 0;
+			max_k1 = green_start_time[0] - relative_left_coor[0] / velocity;
+			min_k2 = green_end_time[0] - relative_left_coor[0] / velocity;
+			for(var i = 0; i < green_start_time.length; i++)
+			{
+				if(max_k1 < green_start_time[i] - relative_left_coor[i] / velocity)
+				{
+					max_k1 = green_start_time[i] - relative_left_coor[i] / velocity;
+				}
+				
+				if(min_k2 > green_end_time[i] - relative_left_coor[i] / velocity)
+				{
+					min_k2 = green_end_time[i] - relative_left_coor[i] / velocity;
+				}
+			}
+			
+			positive_bandwidth = parseInt(min_k2 - max_k1);		// 正向绿波带宽度
+			
+			var max_k1 = 0;
+			var min_k2 = 0;
+			max_k1 = green_start_time[green_start_time.length - 1] + relative_right_coor[0] / velocity;
+			min_k2 = green_end_time[green_start_time.length - 1] + relative_right_coor[0] / velocity;
+			for(var i = 0; i < green_start_time.length; i++)
+			{
+				if(max_k1 < green_start_time[green_start_time.length - 1 - i] + relative_right_coor[i] / velocity)
+				{
+					max_k1 = green_start_time[green_start_time.length - 1 - i] + relative_right_coor[i] / velocity;
+				}
+				
+				if(min_k2 > green_end_time[green_start_time.length - 1 - i] + relative_right_coor[i] / velocity)
+				{
+					min_k2 = green_end_time[green_start_time.length - 1 - i] + relative_right_coor[i] / velocity;
+				}
+			}
+			opposite_bandwidth = parseInt(min_k2 - max_k1);		// 反向绿波带宽度
+		
+			return parseInt((opposite_bandwidth + positive_bandwidth) / 2);
+			
+		}
+		
+		
+		/* 		
+		 *		function calGreenStartTime(lamda_arr, publicCycle, relative_offset, index)
+		 *				计算关键相位绿灯启亮时刻。
+		 *
+		 *		输入参数：
+		 *				lamda_arr			
+		 *				publicCycle			
+		 *				relative_offset		相对相位差
+		 *				index				
+		 */
+		function calGreenStartTime(lamda_arr, publicCycle, relative_offset, index)
+		{
+			var green_start_time_arr = [];
+			var effective_green_time = [];
+			
+			for(var i = 0; i < index.length; i++)
+			{
+				var temp = relative_offset[i];
+				
+				while(true)
+				{
+					if((index[i] * 0.5 - 0.75) * publicCycle <= temp && temp <= (index[i] * 0.5 - 0.25) * publicCycle)
+					{
+						break;
+					}
+					else if((index[i] * 0.5 - 0.75) * publicCycle >= temp)
+					{
+						temp += publicCycle * 0.5;
+					}
+					else if((index[i] * 0.5 - 0.25) * publicCycle <= temp)
+					{
+						temp -= publicCycle * 0.5;
+					}
+				}
+				green_start_time_arr.push(temp);
+			}
+			return green_start_time_arr;
+		}
+		
+		
+		/* 		
+		 *		function calGreenEndTime(lamda_arr, publicCycle, green_start_time_arr)
+		 *				计算关键相位绿灯停止时刻。
+		 *
+		 *		输入参数：
+		 *				lamda_arr					绿信比
+		 *				publicCycle					公共周期时长
+		 *				green_start_time_arr		相对相位差			
+		 */
+		function calGreenEndTime(lamda_arr, publicCycle, green_start_time_arr)
+		{
+			var green_end_time_arr = [];
+			for(var i = 0; i < green_start_time_arr.length; i++)
+			{
+				green_end_time_arr.push(green_start_time_arr[i] + publicCycle * lamda_arr[i]);
+			}
+			return green_end_time_arr;
+		}
+		
+		
+		function arraySum(a)
+		{
+			result = 0;
+			for(var i = 0; i < a.length; i++)
+			{
+				result += a[i];
+			}
+			return result;
+		}
+		
+		
+		function arrayAccumulate(a)
+		{
+			var result = [];
+			var tmp = 0;
+			for(var i = 0; i < a.length; i++)
+			{
+				tmp += a[i];
+				result.push(tmp);
+			}
+			return result;
+		}
+		
+		/*		
+		 *		function getCanvasWidthHeight(id)
+		 *				获取Canvas画板的宽度和高度
+		 *		
+		 *		输入参数：
+		 *				id		canvas 画板的id
+		 *		返回值：
+		 *				返回Point对象实例
+		 */
+		function getCanvasWidthHeight(id)
+		{
+			var oCan = document.getElementById(id);
+			if(oCan.currentStyle)
+			{
+				tmpw = parseInt(oCan.currentStyle.width);
+				tmph = parseInt(oCan.currentStyle.height);
+			}
+			else
+			{
+				tmpw = parseInt(getComputedStyle(oCan,null).width);
+				tmph = parseInt(getComputedStyle(oCan,null).height);
+			}
+			//var ptcenter = new Point(tmpw / 2, tmph / 2);					//计算出画板中心点
+			return new Point(tmpw, tmph);
+		}
+		
+		
+		function drawLine(obj, color, x1, y1, x2, y2, line_width)
+		{
+			obj.beginPath();
+			obj.moveTo( x1 - line_width/ 2, y1 + line_width/ 2);
+			obj.lineTo( x2 - line_width/ 2, y2 + line_width/ 2);
+			obj.strokeStyle = color;
+			obj.lineWidth = line_width;
+			obj.stroke();
+			obj.closePath();	
+		}
+		
+		
+		window.onload = function()
+		{
+			var oBtn = document.getElementById('btn_cross_num');
+			var oBtn3 = document.getElementById('btncen');
+			
+			var oDiv = document.getElementById('btn_arr');
+			var oDiv2 = document.getElementById('inputs');
+			var oDiv3 = document.getElementById('params');
+			
+			var oTxt = document.getElementById('cross_number');
+			var cross_dist = [];
+			
+			oBtn.onclick = function()
+			{
+				var cross_num = parseInt(oTxt.value);		// 获取交叉口数量
+				var str1 = insertButtons(oDiv, cross_num);	// 根据交叉口数量添加选项卡按钮组
+				insertTabs(oDiv2, cross_num, str1);			// 根据交叉口数量添加选项卡div和div内容
+				new TabSwitch('inputs', 'btn_arr');			// 构建选项卡响应
+			}
+			
+			var cross_dist = [];			//	交叉口间距数组
+			var green_start_time_arr = [];	//	绿灯起始时间数组
+			var green_end_time_arr = [];	//	绿灯结束时间数组
+			var velocity = 0;				//	速度变量
+			var publicCycle = 0;			//	公共周期时长
+			
+			oBtn3.onclick = function()
+			{
+				//  step 1,2    获取周期、速度变量
+				var aDiv = oDiv2.getElementsByTagName('div');
+				var aInp = oDiv3.getElementsByTagName('input'); 
+				
+				
+				if(aInp[0].value == '')	// 设置速度，默认为  12.5m/s
+				{
+					velocity = 12.5;
+				}
+				if(aInp[1].value == '')	// 公共周期时长为空，弹出错误框
+				{
+					alert('请输入公共周期！');
+					return -1;
+				}
+				
+				velocity = parseFloat(aInp[0].value);		// 速度
+				publicCycle = parseInt(aInp[1].value);		// 周期时长
+				
+				//  step 3   获取交叉口间距
+				cross_dist = [];
+				for(var i = 1; i < aDiv.length; i++)
+				{
+					var aTxt = aDiv[i].getElementsByTagName('input');
+					if(aTxt[0].value == '')
+					{
+						alert('交叉口'+ i + '没输入距离！');
+						return -1;
+					}
+					cross_dist.push(parseInt(aTxt[0].value));
+				}
+				
+				//  step 8
+				var gap_skip = 10;
+				var min_actual2dream_gap = velocity * publicCycle / 2 - gap_skip * 10;
+				var max_actual2dream_gap = velocity * publicCycle / 2 + gap_skip * 10;
+				var gap_cross = calGreenWave(cross_dist, velocity, publicCycle, min_actual2dream_gap, max_actual2dream_gap, gap_skip);
+				/*			gap_cross[0]			cross_dist
+				 *			gap_cross[1]			velocity
+				 *			gap_cross[2]			publicCycle
+				 *			gap_cross[3]			理想交叉口最短间距
+				 *			gap_cross[4]			最长间距
+				 *			gap_cross[5]			理想交叉口的取值间隔 		*/
+				
+				var coordinate = accumSum(cross_dist);	// 交叉口坐标
+				
+				//  step 12		
+				var actual2dreamlocation = calactual2dreamLocation(coordinate, gap_cross);
+				var param_arr = get_lamda_cycle('inputs', publicCycle);
+
+				var loss_arr = [];
+				for(var i = 0; i < actual2dreamlocation[1].length; i++)
+				{
+					var temp = (actual2dreamlocation[1][i] / velocity) / (publicCycle / 2);
+					loss_arr.push(temp);
+				}
+
+				var offset_arr = calOffset(param_arr[0], param_arr[1], actual2dreamlocation[2]);	//param_arr[0]   param_arr[1]    actual2dreamlocation[2]
+
+				var relative_offset = calRelativeOffset(offset_arr, publicCycle, 0);				// 假设相对第1个交叉口进行相位差计算  
+
+				green_start_time_arr = [];
+				green_end_time_arr = [];
+				green_start_time_arr = calGreenStartTime(param_arr[0], publicCycle, relative_offset, actual2dreamlocation[2]);
+				green_end_time_arr = calGreenEndTime(param_arr[0], publicCycle, green_start_time_arr);
+
+				// 计算双向绿波宽度
+				var double_band_width = calGreenBandWidth(actual2dreamlocation[1], actual2dreamlocation[0], actual2dreamlocation[2], gap_cross[2],velocity, green_start_time_arr, green_end_time_arr);
+				
+				
+				var oText1 = document.getElementById('showcalresult');
+				if(double_band_width > 0 && double_band_width < publicCycle / 2)
+				{
+					var str_cal_result = '双向绿波带宽为' + double_band_width + 's\n';
+				}
+				else
+				{
+					var str_cal_result = '';
+				}
+				
+				for(var i = 0; i < aDiv.length - 1; i++)
+				{
+					str_cal_result += '第' + (i+1) + '个交叉口绿灯启亮时刻：' + green_start_time_arr[i] + 's\n第' + (i+1) + '个交叉口绿灯停止时刻：' + green_end_time_arr[i] + 's\n';
+				}
+				oText1.innerHTML = str_cal_result;
+				
+			}
+			
+			
+			
+			// 输出计算结果
+			var oBtndict = document.getElementById('btn_dict');
+			oBtndict.onclick = function()
+			{
+				var oText1 = document.getElementById('showcalresult');
+				if(oText1.innerHTML = '')
+				{
+					alert('请输入干线控制交叉口信息！');
+					return -1;
+				}
+				var oCan = document.getElementById('showcross');
+				var cxt = oCan.getContext('2d');
+				cxt.clearRect(0,0, 1000, 1000);
+				var canvas_center_pt = getCanvasWidthHeight('showcross');
+				var actual_coor = cross_dist;
+				var actual_location = arrayAccumulate(actual_coor);
+				var start_time = green_start_time_arr;
+				var end_time = green_end_time_arr;
+				//drawLine(cxt, "#00F", 5, 5, 5, 145, 0.2);
+				//drawLine(cxt, "#00F", 5, 145, 800, 145, 0.2);
+				var show_cycle_num = parseInt(end_time[end_time.length - 1]/publicCycle) + 1;
+				var scale_y = 145 / (show_cycle_num * publicCycle);
+				var scale_x = 250 / actual_location[actual_location.length - 1];
+				
+				var st = [];
+				var et = [];
+				for(var i = 0; i < start_time.length; i++)
+				{
+					var temp = start_time[i] - show_cycle_num * publicCycle;
+					var temp2 = end_time[i] - show_cycle_num * publicCycle;
+
+					st.push(temp);
+					et.push(temp2);
+				}
+
+				for(var i = 0; i < actual_location.length; i++)
+				{
+					for(var j = 0; j < show_cycle_num * 2; j++)
+					{
+						var green_pt1x = st[i] + j * publicCycle;
+						var green_pt1y = et[i] + j * publicCycle;
+						
+						var green_pt2x = et[i] + j * publicCycle;
+						var green_pt2y = st[i] + (j + 1) * publicCycle;
+						drawLine(cxt, "#0F0", actual_location[i] * scale_x, 5 + scale_y * green_pt1x, actual_location[i] * scale_x, 5 + scale_y * green_pt1y, 1);
+					
+						drawLine(cxt, "#F00", actual_location[i] * scale_x, 5 + scale_y * green_pt2x, actual_location[i] * scale_x, 5 + scale_y * green_pt2y, 1);
+					}
+
+				}
+			
+			}
+			
+		}
+
+
+	</script>
+</head>
+<body>
+	
+	<div id = 'page'>
+	
+		<div id = 'div1'>
+		干线协调控制交叉口数量：<input type = 'text' id = 'cross_number' />
+		<input type = 'button' id = 'btn_cross_num' value = '确定' />
+		
+		</div>
+		
+		<canvas id = 'showcross'>
+		</canvas>
+
+			
+
+		
+		
+		
+		<div id = 'params'>
+			系统速度：<input type = 'text' /> m/s<br />
+			公共周期：<input type = 'text' />   s  
+		</div>
+		
+		
+		
+		<div id = 'inputs'>
+			
+			<div id = 'btn_arr'>
+				
+			</div>
+			
+			
+		</div>
+		<input id = 'btncen' type = 'button' value = '计算' />
+		<input type = 'button' id = 'btn_dict' value = '绘制' />
+		
+		<div id = 'calresult'>
+			
+			<textarea id = 'showcalresult'></textarea>
+
+			
+		</div>
+	</div>
+	
+	
+	
+	
+	
+
+	
+</body>
+
+<footer>
+	隐私保护    杭州绿启交通科技有限公司  版权所有
+	<br />
+	联系电话:18698573720    举报邮箱:lyfyulin1992@163.com
+	<br />
+	地址：杭州市西湖区石祥西路859号紫金创业园c座306号
+	<br />
+</footer>
+
+</html>
